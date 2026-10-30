@@ -587,9 +587,10 @@ Secret Scanning / Push Protection, он может заблокировать с
 ### Готовый демо-PR этой сдачи
 
 - Репозиторий: <https://github.com/Horda23/SecureMerge>
-- PR с демонстрационным «секретом»: <https://github.com/Horda23/SecureMerge/pull/2>
-- В PR уже есть комментарий бота и проваленный статус
-  `Compliance Sentinel`; при настроенном branch protection Merge заблокирован.
+- PR с демонстрационным «секретом»: <https://github.com/Horda23/SecureMerge/pull/3>
+- В PR есть реальный AI-комментарий с найденным секретом и проваленный
+  статус `Compliance Sentinel`; branch protection блокирует Merge.
+- Живое демо использует локальную Qwen2.5 3B через Ollama в Docker.
 - Более короткий чек-лист для жюри: [SUBMISSION.md](SUBMISSION.md).
 
 ---
