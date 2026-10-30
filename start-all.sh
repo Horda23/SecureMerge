@@ -104,11 +104,13 @@ docker compose up -d --build >"$compose_log" 2>&1 || {
 
 step "Жду готовности приложения"
 healthy=false
-for _ in $(seq 1 60); do
+i=0
+while [ "$i" -lt 60 ]; do
     if curl -fsS --max-time 3 http://127.0.0.1:8000/health >/dev/null 2>&1; then
         healthy=true
         break
     fi
+    i=$((i + 1))
     sleep 2
 done
 if [ "$healthy" != true ]; then
