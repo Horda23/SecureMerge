@@ -1,0 +1,12 @@
+[tool.ruff]
+line-length = 100
+exclude = [
+    ".venv",
+    "logs",
+    "test.py",
+    "tunnel.stdout.log",
+    "tunnel.stderr.log",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
