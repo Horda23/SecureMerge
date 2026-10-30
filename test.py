@@ -5,3 +5,5 @@ def connect_to_db():
 # live Docker demo trigger: synchronous compliance check
 
 # live Ollama demo trigger: synchronous compliance check 2
+
+# fixture refresh: redaction regression check
