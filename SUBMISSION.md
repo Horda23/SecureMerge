@@ -11,14 +11,15 @@ Request, анализирует diff через LLM и не даёт смерж�
 fail-closed: слияние останавливается для ручной проверки.
 
 - Репозиторий: <https://github.com/Horda23/SecureMerge>
-- Демо-PR: <https://github.com/Horda23/SecureMerge/pull/2>
+- Демо-PR: <https://github.com/Horda23/SecureMerge/pull/3>
 - Подробная инструкция: [README.md](README.md)
 
 ## Что показать жюри
 
-1. Открыть [PR #2](https://github.com/Horda23/SecureMerge/pull/2): в нём
+1. Открыть [PR #3](https://github.com/Horda23/SecureMerge/pull/3): в нём
    добавлен `test.py` с «секретом» в коде.
-2. Показать комментарий бота с причиной блокировки.
+2. Показать комментарий бота с реальной причиной блокировки от локальной
+   Qwen2.5 3B.
 3. Показать проверку `Compliance Sentinel` в состоянии **failure**.
 4. Показать, что кнопка **Merge pull request** недоступна: branch protection
    требует успешного статуса.
@@ -38,7 +39,8 @@ FastAPI /webhook (202 Accepted, BackgroundTasks)
         │
         ├─ GitHub REST API: получить unified diff PR
         ▼
-LLM (DeepSeek по умолчанию в демо; Groq/любой OpenAI-compatible endpoint)
+LLM (локальная Qwen2.5 3B через Ollama в Docker; поддерживаются Groq,
+DeepSeek и любой OpenAI-compatible endpoint)
         │  строгий JSON: {"status": "BLOCK"|"PASS", "reason": "..."}
         ▼
 BLOCK → комментарий в PR + commit status failure
@@ -55,7 +57,29 @@ Branch protection: обязательный check "Compliance Sentinel"
 
 ## Как запустить (для проверки)
 
-### Вариант A: Docker Compose + публичный туннель — одна команда
+### Вариант A: локальная LLM через Ollama — без внешнего API и ключей
+
+```bash
+# 1. Ollama в Docker
+docker run -d --name compliance-ollama --restart unless-stopped \
+  -p 11434:11434 -v compliance_ollama:/root/.ollama ollama/ollama
+docker exec compliance-ollama ollama pull qwen2.5:3b
+
+# 2. .env
+GITHUB_TOKEN=...
+GITHUB_WEBHOOK_SECRET=...
+GROQ_API_KEY=ollama
+GROQ_API_URL=http://host.docker.internal:11434/v1
+GROQ_MODEL=qwen2.5:3b
+GROQ_TIMEOUT_SECONDS=300
+
+# 3. Приложение
+docker compose up -d --build
+```
+
+Проверка: `curl http://127.0.0.1:8000/health`.
+
+### Вариант B: Docker Compose + публичный туннель
 
 ```bash
 cp .env.example .env             # Windows: Copy-Item .env.example .env
@@ -64,9 +88,10 @@ docker compose --profile tunnel up --build
 ```
 
 В логах `tunnel` появится `https://*.trycloudflare.com` — это Payload URL
-для GitHub webhook (`.../webhook`).
+для GitHub webhook (`.../webhook`). Если Cloudflare недоступен из вашей сети,
+используйте ngrok/другой HTTPS-туннель.
 
-### Вариант B: один PowerShell-скрипт (Windows)
+### Вариант C: один PowerShell-скрипт (Windows)
 
 ```powershell
 .\start.ps1
@@ -75,7 +100,7 @@ docker compose --profile tunnel up --build
 Скрипт сам создаст `.env`, виртуальное окружение, поставит зависимости,
 проверит конфиг и запустит uvicorn.
 
-### Вариант C: Render (без локального терминала)
+### Вариант D: Render (без локального терминала)
 
 В репозитории есть `render.yaml` и `Dockerfile`. В Render:
 **New → Blueprint → подключить репозиторий** → указать секреты
@@ -85,7 +110,7 @@ docker compose --profile tunnel up --build
 > Free-инстанс Render засыпает: первый запрос после простоя может быть
 > медленнее. Перед демонстрацией откройте `/health`, чтобы разбудить сервис.
 
-### Вариант D: вручную
+### Вариант E: вручную
 
 ```bash
 python -m venv .venv
@@ -101,9 +126,9 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 |---|---|
 | `GITHUB_TOKEN` | PAT с доступом к Pull requests и Commit statuses |
 | `GITHUB_WEBHOOK_SECRET` | секрет HMAC, тот же в GitHub webhook |
-| `GROQ_API_KEY` | ключ LLM-провайдера (DeepSeek `sk-...` в текущем демо) |
-| `GROQ_API_URL` | `https://api.deepseek.com` или Groq/другой OpenAI-compatible endpoint |
-| `GROQ_MODEL` | `deepseek-flash` в текущем демо |
+| `GROQ_API_KEY` | ключ провайдера (`sk-...`, `gsk-...`) или `ollama` для локальной модели |
+| `GROQ_API_URL` | `http://host.docker.internal:11434/v1` для Ollama, иначе endpoint провайдера |
+| `GROQ_MODEL` | `qwen2.5:3b` в текущем демо, либо модель Groq/DeepSeek |
 | `STATUS_CONTEXT` | `Compliance Sentinel` — имя обязательной проверки |
 | `ALLOWED_REPOSITORIES` | опциональный allow-list `owner/repo` |
 
@@ -131,13 +156,14 @@ webhook-тела (включая chunked), парсинг LLM-ответа и fa
   репозиториев нужен self-hosted провайдер.
 - `BackgroundTasks` не переживают рестарт процесса; для production нужна
   очередь и идемпотентность по `X-GitHub-Delivery`.
-- В демо используется DeepSeek, потому что Groq отдаёт `403` из сети
-  разработки. Код поддерживает Groq без изменений: достаточно вернуть
-  `GROQ_API_URL`/`GROQ_MODEL` на Groq.
+- В демо используется локальная Qwen2.5 3B через Ollama в Docker: внешние
+  Groq/DeepSeek/Gemini недоступны или без баланса из региона. Код поддерживает
+  их без изменений: достаточно поменять `GROQ_API_URL`/`GROQ_MODEL`/ключ.
 - GitHub PAT в демо имеет scope `public_repo`; для приватного репозитория
   нужен `repo`.
 
 ## Стек
 
 Python 3.10+, FastAPI, uvicorn, httpx, python-dotenv, pytest, ruff,
-DeepSeek/Groq OpenAI-compatible API, GitHub REST API, Docker, GitHub Actions.
+OpenAI-compatible LLM API (Groq/DeepSeek) или локальная Ollama/Qwen2.5,
+GitHub REST API, Docker.
