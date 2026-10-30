@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    image: compliance-sentinel:local
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # Public HTTPS URL without a local tunnel client:
+  #   docker compose --profile tunnel up --build
+  # The generated https://*.trycloudflare.com URL is printed in the tunnel logs.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://app:8000
+    depends_on:
+      - app
+    profiles: ["tunnel"]
+    restart: unless-stopped

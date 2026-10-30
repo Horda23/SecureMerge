@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: compliance-sentinel
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_API_URL
+        value: https://api.deepseek.com
+      - key: GROQ_MODEL
+        value: deepseek-flash
+      - key: STATUS_CONTEXT
+        value: Compliance Sentinel
+      - key: LOG_LEVEL
+        value: INFO
