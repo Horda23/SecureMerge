@@ -7,3 +7,5 @@ def connect_to_db():
 # live Ollama demo trigger: synchronous compliance check 2
 
 # fixture refresh: redaction regression check
+
+# ci scope refresh
