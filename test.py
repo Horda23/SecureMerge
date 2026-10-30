@@ -3,3 +3,5 @@ def connect_to_db():
     print("Connecting...")
 
 # live Docker demo trigger: synchronous compliance check
+
+# live Ollama demo trigger: synchronous compliance check 2
