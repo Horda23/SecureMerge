@@ -11,12 +11,12 @@ Request, анализирует diff через LLM и не даёт смерж�
 fail-closed: слияние останавливается для ручной проверки.
 
 - Репозиторий: <https://github.com/Horda23/SecureMerge>
-- Демо-PR: <https://github.com/Horda23/SecureMerge/pull/2>
+- Демо-PR: <https://github.com/Horda23/SecureMerge/pull/3>
 - Подробная инструкция: [README.md](README.md)
 
 ## Что показать жюри
 
-1. Открыть [PR #2](https://github.com/Horda23/SecureMerge/pull/2): в нём
+1. Открыть [PR #3](https://github.com/Horda23/SecureMerge/pull/3): в нём
    добавлен `test.py` с «секретом» в коде.
 2. Показать комментарий бота с причиной блокировки.
 3. Показать проверку `Compliance Sentinel` в состоянии **failure**.
@@ -38,7 +38,7 @@ FastAPI /webhook (202 Accepted, BackgroundTasks)
         │
         ├─ GitHub REST API: получить unified diff PR
         ▼
-LLM (DeepSeek по умолчанию в демо; Groq/любой OpenAI-compatible endpoint)
+LLM (локальная Qwen2.5 3B через Ollama в Docker; Groq/DeepSeek/любой OpenAI-compatible endpoint)
         │  строгий JSON: {"status": "BLOCK"|"PASS", "reason": "..."}
         ▼
 BLOCK → комментарий в PR + commit status failure
