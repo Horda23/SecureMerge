@@ -1,5 +1,12 @@
 # 🛡️ Compliance Sentinel
 
+[![tests](https://img.shields.io/badge/tests-41%20passed-brightgreen)](#тесты)
+[![python](https://img.shields.io/badge/python-3.10%2B-blue)](#требования)
+[![fastapi](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
+[![llm](https://img.shields.io/badge/LLM-local%20Qwen2.5%203B-7c3aed)](#)
+[![docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](#быстрый-старт)
+
+
 > **SecureMerge** — репозиторий проекта; **Compliance Sentinel** — имя
 > GitHub-бота. Для сдачи и демо см. [SUBMISSION.md](SUBMISSION.md).
 
@@ -27,6 +34,19 @@ AI-бот для GitHub, который перехватывает Pull Request,
 > [DeepSeek как альтернатива](#deepseek-как-альтернатива-если-groq-недоступен).
 
 ---
+
+## Демо
+
+| Что | Где |
+| --- | --- |
+| Открытый PR, который бот заблокировал | [PR #3](https://github.com/Horda23/SecureMerge/pull/3) |
+| Live-демо | ссылка **Website** в блоке About этого репозитория (обновляется автоматически) |
+| Release для сдачи | [v1.0.1](https://github.com/Horda23/SecureMerge/releases/tag/v1.0.1) |
+| Чек-лист жюри | [SUBMISSION.md](SUBMISSION.md) |
+
+> В live-демо используется локальная Qwen2.5 3B через Ollama в Docker —
+> без внешних API и биллинга. Проект также поддерживает Groq, DeepSeek
+> и любой OpenAI-совместимый endpoint.
 
 ## Содержание
 
