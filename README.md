@@ -13,6 +13,11 @@ AI-бот для GitHub, который перехватывает Pull Request,
 - очевидно опасные уязвимости: SQL/command injection, path traversal, SSRF,
   небезопасную десериализацию, отключённый TLS и т. п.
 
+> В текущем публичном демо LLM работает **локально**: Qwen2.5 3B в Ollama
+> внутри Docker. Это позволяет показать анализ без внешних API, ключей и
+> биллинга из региона, где Groq/DeepSeek/Gemini недоступны. Проект при этом
+> поддерживает любой OpenAI-совместимый провайдер — см. разделы ниже.
+
 Бот работает по событиям `pull_request` (`opened` и `synchronize`), пишет
 комментарий с причиной и выставляет commit status `failure`/`success`.
 При включённом branch protection кнопка **Merge** блокируется на `failure`.
@@ -23,8 +28,9 @@ AI-бот для GitHub, который перехватывает Pull Request,
 > зависимости.
 >
 > Бот работает с любым OpenAI-совместимым чат-API. Если Groq недоступен в
-> вашем регионе (из РФ он отдаёт Cloudflare `403`), см. раздел
-> [DeepSeek как альтернатива](#deepseek-как-альтернатива-если-groq-недоступен).
+> вашем регионе (из РФ он отдаёт Cloudflare `403`), используйте
+> [локальную Ollama](#локальная-llm-через-ollama-без-внешнего-api) или
+> [DeepSeek как альтернативу](#deepseek-как-альтернатива-если-groq-недоступен).
 
 ---
 
@@ -113,9 +119,9 @@ Branch protection с обязательной проверкой "Compliance Sen
 ```
 
 Стек: Python 3.10+, FastAPI, uvicorn, httpx (асинхронные запросы к GitHub и
-LLM через OpenAI-совместимый REST API), python-dotenv, Docker, GitHub Actions.
-Провайдер LLM: Groq (`llama-3.3-70b-versatile` в `.env.example`) или DeepSeek
-(`deepseek-flash` в текущем демо).
+LLM через OpenAI-совместимый REST API), python-dotenv, Docker.
+Провайдер LLM: Groq (`llama-3.3-70b-versatile` в `.env.example`), DeepSeek
+(`deepseek-flash`) или локальная Ollama (`qwen2.5:3b` в текущем демо).
 
 ---
 
@@ -124,7 +130,8 @@ LLM через OpenAI-совместимый REST API), python-dotenv, Docker, G
 - Python **3.10+** (проверено на 3.12);
 - аккаунт GitHub и права администратора репозитория (для создания вебхука);
 - токен GitHub PAT;
-- API-ключ LLM-провайдера: Groq или DeepSeek (см. ниже);
+- API-ключ LLM-провайдера (Groq/DeepSeek) **или** локальная Ollama без
+  внешнего ключа;
 - `ngrok` или другой публичный HTTPS-туннель — GitHub должен достучаться
   до локального сервера.
 
@@ -356,6 +363,38 @@ DeepSeek поддерживает JSON mode, который использует
 > рабочий доступ/прокси или запускайте демо из сети, где Groq доступен.
 > Обход региональных ограничений может нарушать ToS сервиса.
 
+### Локальная LLM через Ollama (без внешнего API)
+
+Полностью локальный вариант, который используется в текущем демо:
+
+```bash
+docker run -d --name compliance-ollama --restart unless-stopped \
+  -p 11434:11434 -v compliance_ollama:/root/.ollama ollama/ollama
+docker exec compliance-ollama ollama pull qwen2.5:3b
+```
+
+В `.env`:
+
+```dotenv
+GROQ_API_KEY=ollama
+GROQ_API_URL=http://host.docker.internal:11434/v1
+GROQ_MODEL=qwen2.5:3b
+GROQ_TIMEOUT_SECONDS=300
+GROQ_MAX_RETRIES=1
+```
+
+`host.docker.internal` используется, когда приложение запущено в Docker,
+а Ollama — отдельный контейнер на том же Docker Desktop. После изменения
+`.env` перезапустите приложение:
+
+```bash
+docker compose up -d --force-recreate app
+```
+
+Модель 3B работает без GPU заметно медленнее облачных API, зато не требует
+ключа, оплаты и внешней сети. Для более качественного аудита можно взять
+`qwen2.5:7b` и увеличить таймаут.
+
 ---
 
 ## Настройка `.env`
@@ -364,10 +403,10 @@ DeepSeek поддерживает JSON mode, который использует
 |---|---:|---|---|
 | `GITHUB_TOKEN` | да | — | PAT для GitHub API |
 | `GITHUB_WEBHOOK_SECRET` | да | — | секрет HMAC для вебхука, ≥ 16 символов |
-| `GROQ_API_KEY` | да | — | ключ LLM-провайдера (Groq `gsk_...` или DeepSeek `sk-...`) |
+| `GROQ_API_KEY` | да | — | ключ LLM-провайдера (Groq `gsk_...`, DeepSeek `sk-...`) или `ollama` для локальной модели |
 | `GITHUB_API_URL` | нет | `https://api.github.com` | для GitHub Enterprise |
-| `GROQ_API_URL` | нет | `https://api.groq.com/openai/v1/chat/completions` | OpenAI-совместимый endpoint; можно указать базовый `.../v1`; для DeepSeek — `https://api.deepseek.com` |
-| `GROQ_MODEL` | нет | `llama-3.3-70b-versatile` | модель; для DeepSeek — `deepseek-flash` |
+| `GROQ_API_URL` | нет | `https://api.groq.com/openai/v1/chat/completions` | OpenAI-совместимый endpoint; для DeepSeek — `https://api.deepseek.com`, для Ollama — `http://host.docker.internal:11434/v1` |
+| `GROQ_MODEL` | нет | `llama-3.3-70b-versatile` | модель; для DeepSeek — `deepseek-flash`, для Ollama — `qwen2.5:3b` |
 | `STATUS_CONTEXT` | нет | `Compliance Sentinel` | имя проверки в GitHub; ≤ 100 символов |
 | `MAX_DIFF_CHARS` | нет | `80000` | больше — fail-closed без вызова LLM |
 | `HTTP_TIMEOUT_SECONDS` | нет | `30` | таймаут GitHub API |
@@ -587,9 +626,11 @@ Secret Scanning / Push Protection, он может заблокировать с
 ### Готовый демо-PR этой сдачи
 
 - Репозиторий: <https://github.com/Horda23/SecureMerge>
-- PR с демонстрационным «секретом»: <https://github.com/Horda23/SecureMerge/pull/2>
-- В PR уже есть комментарий бота и проваленный статус
-  `Compliance Sentinel`; при настроенном branch protection Merge заблокирован.
+- PR с демонстрационным «секретом»: <https://github.com/Horda23/SecureMerge/pull/3>
+- В PR есть комментарий бота с реальным AI-вердиктом и проваленный статус
+  `Compliance Sentinel`; branch protection блокирует Merge.
+- LLM в живом демо — локальная `qwen2.5:3b` через Ollama в Docker (реальный
+  анализ, `degraded=False`, без внешних API и ключей).
 - Более короткий чек-лист для жюри: [SUBMISSION.md](SUBMISSION.md).
 
 ---
