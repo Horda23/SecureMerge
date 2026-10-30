@@ -4,6 +4,7 @@
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](#требования)
 [![fastapi](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
 [![llm](https://img.shields.io/badge/LLM-OpenAI--compatible-7c3aed)](#llm-провайдер)
+[![CI](https://github.com/Horda23/SecureMerge/actions/workflows/ci.yml/badge.svg)](https://github.com/Horda23/SecureMerge/actions/workflows/ci.yml)
 [![docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](#быстрый-старт)
 
 > **SecureMerge** — репозиторий проекта; **Compliance Sentinel** — имя
