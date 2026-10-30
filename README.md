@@ -36,9 +36,13 @@ AI-бот для GitHub, который перехватывает Pull Request,
 | Release для сдачи | [v1.0.3](https://github.com/Horda23/SecureMerge/releases/tag/v1.0.3) |
 | Чек-лист жюри | [SUBMISSION.md](SUBMISSION.md) |
 
-> В live-демо используется локальная Qwen2.5 3B через Ollama в Docker —
+> в live-демо используется локальная Qwen2.5 3B через Ollama в Docker —
 > без внешних API и биллинга. Проект также поддерживает любой
 > OpenAI-совместимый endpoint.
+>
+> Live-демо обслуживается постоянным HTTP-туннелем `bore.pub` с локального
+> ПК. Для production нужен HTTPS (Render или reverse-proxy); ссылка Website
+> обновляется автоматически при смене порта.
 
 ## Как это работает
 
