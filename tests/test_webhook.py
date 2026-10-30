@@ -48,7 +48,7 @@ def api_client(monkeypatch):
     """Поднять приложение с тестовыми env-переменными и закрыть после теста."""
     monkeypatch.setenv("GITHUB_TOKEN", "github-test-token")
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", WEBHOOK_SECRET)
-    monkeypatch.setenv("GROQ_API_KEY", "groq-test-key")
+    monkeypatch.setenv("LLM_API_KEY", "llm-test-key")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
     monkeypatch.delenv("ALLOWED_REPOSITORIES", raising=False)
     get_settings.cache_clear()

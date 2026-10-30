@@ -11,12 +11,14 @@ services:
         sync: false
       - key: GITHUB_WEBHOOK_SECRET
         sync: false
-      - key: GROQ_API_KEY
+      # OpenAI-compatible provider for the Render deployment. Local Ollama is
+      # not reachable from Render; set these values in the Render dashboard.
+      - key: LLM_API_KEY
         sync: false
-      - key: GROQ_API_URL
-        value: https://api.deepseek.com
-      - key: GROQ_MODEL
-        value: deepseek-flash
+      - key: LLM_API_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
       - key: STATUS_CONTEXT
         value: Compliance Sentinel
       - key: LOG_LEVEL

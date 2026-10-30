@@ -105,8 +105,8 @@ def test_analyze_diff_sends_expected_request_and_returns_block(settings) -> None
     assert result.status == "BLOCK"
     assert result.degraded is False
     assert result.model == "llama-3.3-70b-versatile"
-    assert captured["url"] == settings.groq_api_url
-    assert captured["auth"] == "Bearer groq-test-key"
+    assert captured["url"] == settings.llm_api_url
+    assert captured["auth"] == "Bearer llm-test-key"
     payload = captured["payload"]
     assert isinstance(payload, dict)
     assert payload["response_format"] == {"type": "json_object"}
@@ -115,10 +115,10 @@ def test_analyze_diff_sends_expected_request_and_returns_block(settings) -> None
     assert "+password" in payload["messages"][1]["content"]
 
 
-def test_analyze_diff_accepts_base_groq_url(settings) -> None:
+def test_analyze_diff_accepts_base_llm_url(settings) -> None:
     captured: dict[str, str] = {}
-    base_url = "https://groq.test/openai/v1"
-    base_settings = dataclasses.replace(settings, groq_api_url=base_url)
+    base_url = "https://llm.test/openai/v1"
+    base_settings = dataclasses.replace(settings, llm_api_url=base_url)
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
@@ -166,7 +166,7 @@ def test_analyze_diff_fails_closed_on_auth_error(settings) -> None:
     result = _run(scenario())
     assert calls == 1  # 401 не ретраится
     assert result.status == "BLOCK"
-    assert "GROQ_API_KEY" in result.reason
+    assert "LLM_API_KEY" in result.reason
 
 
 def test_analyze_diff_retries_429_then_succeeds(settings, monkeypatch) -> None:
@@ -181,8 +181,8 @@ def test_analyze_diff_retries_429_then_succeeds(settings, monkeypatch) -> None:
             return httpx.Response(429, headers={"retry-after": "1"})
         return _completion('{"status": "PASS", "reason": "Проблем нет."}')
 
-    # groq_max_retries=0 в фикстуре, поэтому для этого теста разрешаем один повтор.
-    retry_settings = dataclasses.replace(settings, groq_max_retries=1)
+    # llm_max_retries=0 в фикстуре, поэтому для этого теста разрешаем один повтор.
+    retry_settings = dataclasses.replace(settings, llm_max_retries=1)
 
     async def scenario_with_retry() -> AnalysisResult:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:

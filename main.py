@@ -6,7 +6,8 @@
 2. Проверяем HMAC SHA-256, событие и действие (opened/synchronize).
 3. Возвращаем 202 сразу и запускаем аудит в BackgroundTasks.
 4. Получаем unified diff PR через GitHub REST API.
-5. Отправляем diff в LLM (Groq/DeepSeek), получаем JSON-вердикт BLOCK/PASS.
+5. Отправляем diff в LLM (локальная Ollama или внешний провайдер), получаем
+   JSON-вердикт BLOCK/PASS.
 6. Публикуем комментарий (для BLOCK) и commit status failure/success.
    Branch protection с обязательным статусом "Compliance Sentinel"
    не даст нажать Merge при failure.
@@ -60,6 +61,21 @@ _SECRET_PATTERNS = (
     ),
 )
 
+# Дополнительная защита от типичной ошибки LLM: модель находит секрет и
+# перепечатывает его значение в reason. Это шире, чем известные форматы
+# токенов выше, и покрывает пароли/PII в кавычках и присваиваниях.
+_GENERIC_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)\b([A-Za-z0-9_]*(?:password|passwd|pwd|secret|token|api[_-]?key|apikey|"
+    r"access[_-]?key|private[_-]?key))\b(\s*[:=]\s*)(['\"]?)([^\s'\"]{4,})\3"
+)
+_QUOTED_SECRET_VALUE_RE = re.compile(
+    r"(?i)(['\"`])([^'\"`\n]{0,60}(?:password|passwd|pwd|secret|token|"
+    r"api[_-]?key|access[_-]?key|private[_-]?key)[^'\"`\n]{0,60})\1"
+)
+_RU_QUOTED_SECRET_RE = re.compile(
+    r"(?i)\b(парол\w*|токен\w*|секрет\w*|ключ\w*)\b([^\"'\n]{0,25})(['\"])([^\"'\n]{3,})\3"
+)
+
 logger = logging.getLogger("compliance_sentinel")
 
 
@@ -96,7 +112,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "Compliance Sentinel v%s запущен. Модель: %s; статус: %r; "
         "лимит diff: %d символов; параллельных аудитов: %d.",
         APP_VERSION,
-        settings.groq_model,
+        settings.llm_model,
         settings.status_context,
         settings.max_diff_chars,
         settings.max_concurrent_audits,
@@ -264,9 +280,22 @@ async def fetch_pull_request_diff(
 
 
 def _redact_secret_fragments(text: str) -> str:
-    """Замаскировать известные форматы секретов в тексте LLM перед публикацией."""
+    """Замаскировать секреты в тексте LLM перед публикацией в PR.
+
+    Сначала вырезаем известные форматы токенов, затем типичные присваивания
+    секретов и значения в кавычках. Это снижает риск повторной публикации
+    credentials, хотя не может гарантировать 100% для произвольных форматов.
+    """
     for pattern in _SECRET_PATTERNS:
         text = pattern.sub("[REDACTED]", text)
+
+    text = _GENERIC_SECRET_ASSIGNMENT_RE.sub(
+        lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]", text
+    )
+    text = _QUOTED_SECRET_VALUE_RE.sub("[REDACTED]", text)
+    text = _RU_QUOTED_SECRET_RE.sub(
+        lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]", text
+    )
     return text
 
 
@@ -318,7 +347,7 @@ def build_block_comment(
     if notes_block:
         notes_block += "\n\n"
 
-    model = html.escape(result.model or settings.groq_model)
+    model = html.escape(result.model or settings.llm_model)
     context = html.escape(settings.status_context)
     action_safe = html.escape(action)
 
@@ -482,7 +511,7 @@ async def run_compliance_audit(
                 result = AnalysisResult(
                     status="PASS",
                     reason="GitHub не вернул изменений в коде — проверять нечего.",
-                    model=settings.groq_model,
+                    model=settings.llm_model,
                 )
             else:
                 try:

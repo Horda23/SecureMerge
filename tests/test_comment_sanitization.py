@@ -42,6 +42,36 @@ def test_comment_escapes_html_and_neutralizes_mentions(settings) -> None:
     assert "[click]" not in comment
 
 
+def test_generic_quoted_secret_is_redacted(settings) -> None:
+    secret = "super_secret_admin_password_123"
+    comment = _comment(
+        settings,
+        f'Найден пароль "{secret}" в connect_to_db() в test.py.',
+    )
+
+    assert secret not in comment
+    assert "REDACTED" in comment
+    assert "connect_to_db" in comment
+
+
+def test_generic_assignment_secret_is_redacted(settings) -> None:
+    comment = _comment(
+        settings,
+        'В app.py: DATABASE_PASSWORD = "hunter2" и API_KEY=abc12345.',
+    )
+
+    assert "hunter2" not in comment
+    assert "abc12345" not in comment
+    assert "REDACTED" in comment
+
+
+def test_russian_quoted_secret_is_redacted(settings) -> None:
+    comment = _comment(settings, 'В app.py пароль "hunter2" захардкожен.')
+
+    assert "hunter2" not in comment
+    assert "REDACTED" in comment
+
+
 def test_status_description_does_not_expose_llm_reason(settings) -> None:
     token = "ghp_" + "Z9y8X7w6" * 4
     result = AnalysisResult(

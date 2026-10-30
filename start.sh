@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 
 if [ ! -f .env ]; then
     cp .env.example .env
-    echo "Created .env. Fill GITHUB_TOKEN, GITHUB_WEBHOOK_SECRET and GROQ_API_KEY, then run again."
+    echo "Created .env. Fill GITHUB_TOKEN, GITHUB_WEBHOOK_SECRET and LLM_API_KEY, then run again."
     exit 1
 fi
 

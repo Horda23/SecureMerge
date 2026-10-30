@@ -1,7 +1,7 @@
-"""Интеграционные тесты полного аудита с мок-сервером GitHub/Groq.
+"""Интеграционные тесты полного аудита с мок-сервером GitHub/LLM.
 
 Сеть не используется: httpx.MockTransport подменяет и GitHub REST API,
-и OpenAI-совместимый эндпоинт Groq.
+и OpenAI-совместимый эндпоинт LLM.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ def _diff() -> bytes:
     )
 
 
-def _groq_response(status: str, reason: str) -> httpx.Response:
+def _llm_response(status: str, reason: str) -> httpx.Response:
     content = json.dumps({"status": status, "reason": reason}, ensure_ascii=False)
     return httpx.Response(
         200,
@@ -60,8 +60,8 @@ def test_block_flow_sets_failure_and_comments(settings) -> None:
         ):
             assert request.headers["accept"] == "application/vnd.github.v3.diff"
             return httpx.Response(200, content=_diff())
-        if request.method == "POST" and str(request.url) == settings.groq_api_url:
-            return _groq_response("BLOCK", "Найден захардкоженный пароль в app.py.")
+        if request.method == "POST" and str(request.url) == settings.llm_api_url:
+            return _llm_response("BLOCK", "Найден захардкоженный пароль в app.py.")
         if (
             request.method == "POST"
             and request.url.path == f"/repos/{REPO}/issues/{PR_NUMBER}/comments"
@@ -115,8 +115,8 @@ def test_pass_flow_sets_success_without_comment(settings) -> None:
             and request.url.path == f"/repos/{REPO}/pulls/{PR_NUMBER}"
         ):
             return httpx.Response(200, content=_diff())
-        if request.method == "POST" and str(request.url) == settings.groq_api_url:
-            return _groq_response("PASS", "Критических проблем не найдено.")
+        if request.method == "POST" and str(request.url) == settings.llm_api_url:
+            return _llm_response("PASS", "Критических проблем не найдено.")
         if request.method == "POST" and request.url.path.startswith(
             f"/repos/{REPO}/statuses/"
         ):
@@ -149,7 +149,7 @@ def test_pass_flow_sets_success_without_comment(settings) -> None:
 
 
 def test_github_diff_failure_fails_closed(settings) -> None:
-    captured: dict[str, list] = {"comments": [], "statuses": [], "groq_calls": 0}
+    captured: dict[str, list] = {"comments": [], "statuses": [], "llm_calls": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
         if (
@@ -157,9 +157,9 @@ def test_github_diff_failure_fails_closed(settings) -> None:
             and request.url.path == f"/repos/{REPO}/pulls/{PR_NUMBER}"
         ):
             return httpx.Response(404, json={"message": "Not Found"})
-        if request.method == "POST" and str(request.url) == settings.groq_api_url:
-            captured["groq_calls"] += 1
-            return _groq_response("PASS", "Не должно вызываться.")
+        if request.method == "POST" and str(request.url) == settings.llm_api_url:
+            captured["llm_calls"] += 1
+            return _llm_response("PASS", "Не должно вызываться.")
         if request.method == "POST" and request.url.path.endswith("/comments"):
             captured["comments"].append(json.loads(request.content)["body"])
             return httpx.Response(201, json={})
@@ -185,14 +185,14 @@ def test_github_diff_failure_fails_closed(settings) -> None:
 
     _run(scenario())
 
-    assert captured["groq_calls"] == 0
+    assert captured["llm_calls"] == 0
     assert captured["statuses"][0]["state"] == "failure"
     assert captured["comments"]
     assert "Не удалось получить diff" in captured["comments"][0]
 
 
 def test_200_non_diff_body_fails_closed(settings) -> None:
-    captured: dict[str, list] = {"comments": [], "statuses": [], "groq_calls": 0}
+    captured: dict[str, list] = {"comments": [], "statuses": [], "llm_calls": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
         if (
@@ -205,9 +205,9 @@ def test_200_non_diff_body_fails_closed(settings) -> None:
                 content=b'{"message": "unexpected"}',
                 headers={"content-type": "application/vnd.github.v3.diff"},
             )
-        if request.method == "POST" and str(request.url) == settings.groq_api_url:
-            captured["groq_calls"] += 1
-            return _groq_response("PASS", "Не должно вызываться.")
+        if request.method == "POST" and str(request.url) == settings.llm_api_url:
+            captured["llm_calls"] += 1
+            return _llm_response("PASS", "Не должно вызываться.")
         if request.method == "POST" and request.url.path.endswith("/comments"):
             captured["comments"].append(json.loads(request.content)["body"])
             return httpx.Response(201, json={})
@@ -233,7 +233,7 @@ def test_200_non_diff_body_fails_closed(settings) -> None:
 
     _run(scenario())
 
-    assert captured["groq_calls"] == 0
+    assert captured["llm_calls"] == 0
     assert captured["statuses"][0]["state"] == "failure"
     assert captured["comments"]
     assert "Не удалось получить diff" in captured["comments"][0]

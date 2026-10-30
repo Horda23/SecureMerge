@@ -1,10 +1,10 @@
 """LLM-анализ git diff через OpenAI-совместимый API.
 
-Модуль отправляет diff в OpenAI-совместимый эндпоинт (Groq по умолчанию,
-но можно указать DeepSeek или другого провайдера) и требует от модели
-строгий JSON. Любая ошибка сети, API или парсинга трактуется по принципу
-fail-closed: PR получает BLOCK и уходит на ручную проверку. Это осознанный
-выбор для compliance-бота — лучше остановить слияние, чем пропустить риск.
+Модуль отправляет diff в OpenAI-совместимый эндпоинт (локальная Ollama или
+любой внешний провайдер) и требует от модели строгий JSON. Любая ошибка
+сети, API или парсинга трактуется по принципу fail-closed: PR получает
+BLOCK и уходит на ручную проверку. Это осознанный выбор для
+compliance-бота — лучше остановить слияние, чем пропустить риск.
 """
 
 from __future__ import annotations
@@ -178,7 +178,7 @@ def _retry_delay(attempt: int, response: httpx.Response | None = None) -> float:
     return min(2.0 ** (attempt - 1), 5.0)
 
 
-def _resolve_groq_endpoint(url: str) -> str:
+def _resolve_llm_endpoint(url: str) -> str:
     """Принять как базовый URL, так и полный путь chat/completions."""
     normalized = url.rstrip("/")
     if normalized.endswith("/chat/completions"):
@@ -254,7 +254,7 @@ async def analyze_diff(
         return AnalysisResult(
             status="PASS",
             reason="GitHub не вернул изменений в коде — проверять нечего.",
-            model=settings.groq_model,
+            model=settings.llm_model,
         )
 
     if len(diff) > settings.max_diff_chars:
@@ -266,39 +266,39 @@ async def analyze_diff(
         return _fail_closed(
             f"diff содержит {len(diff)} символов и превышает лимит "
             f"{settings.max_diff_chars}",
-            model=settings.groq_model,
+            model=settings.llm_model,
         )
 
     payload: dict[str, Any] = {
-        "model": settings.groq_model,
+        "model": settings.llm_model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": _build_user_prompt(diff)},
         ],
         "temperature": 0,
         "max_tokens": 1_024,
-        # JSON mode поддерживают Groq и DeepSeek для используемых моделей.
+        # JSON mode для OpenAI-совместимых провайдеров.
         "response_format": {"type": "json_object"},
     }
     headers = {
-        "Authorization": f"Bearer {settings.groq_api_key}",
+        "Authorization": f"Bearer {settings.llm_api_key}",
         "Content-Type": "application/json",
         "Accept": "application/json",
         "User-Agent": "compliance-sentinel/1.0",
     }
 
-    total_attempts = settings.groq_max_retries + 1
-    groq_endpoint = _resolve_groq_endpoint(settings.groq_api_url)
+    total_attempts = settings.llm_max_retries + 1
+    llm_endpoint = _resolve_llm_endpoint(settings.llm_api_url)
     last_problem = "неизвестная ошибка LLM API"
 
     for attempt in range(1, total_attempts + 1):
         response: httpx.Response | None = None
         try:
             response = await client.post(
-                groq_endpoint,
+                llm_endpoint,
                 headers=headers,
                 json=payload,
-                timeout=settings.groq_timeout_seconds,
+                timeout=settings.llm_timeout_seconds,
             )
         except httpx.TimeoutException:
             last_problem = "истекло время ожидания ответа LLM API"
@@ -306,7 +306,7 @@ async def analyze_diff(
                 "Таймаут LLM API (попытка %d/%d, timeout=%s c).",
                 attempt,
                 total_attempts,
-                settings.groq_timeout_seconds,
+                settings.llm_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             last_problem = "сетевая ошибка при обращении к LLM API"
@@ -332,9 +332,9 @@ async def analyze_diff(
                     len(response.content),
                 )
                 return _fail_closed(
-                    "ответ LLM API не является JSON", model=settings.groq_model
+                    "ответ LLM API не является JSON", model=settings.llm_model
                 )
-            return _parse_completion(data, configured_model=settings.groq_model)
+            return _parse_completion(data, configured_model=settings.llm_model)
 
         # Тело ошибки провайдера не логируем: он может эхом вернуть фрагменты
         # промпта/diff, а туда могут попасть секреты.
@@ -358,17 +358,17 @@ async def analyze_diff(
         if response.status_code in {401, 403}:
             last_problem = (
                 f"LLM API отклонил авторизацию (HTTP {response.status_code}); "
-                "проверьте GROQ_API_KEY"
+                "проверьте LLM_API_KEY"
             )
         elif response.status_code == 400:
-            last_problem = "LLM API отклонил запрос (HTTP 400); проверьте GROQ_MODEL"
+            last_problem = "LLM API отклонил запрос (HTTP 400); проверьте LLM_MODEL"
         elif response.status_code == 404:
             last_problem = "эндпоинт или модель LLM API не найдены (HTTP 404)"
         else:
             last_problem = f"LLM API вернул HTTP {response.status_code}"
-        return _fail_closed(last_problem, model=settings.groq_model)
+        return _fail_closed(last_problem, model=settings.llm_model)
 
     return _fail_closed(
         f"{last_problem} после {total_attempts} попыток",
-        model=settings.groq_model,
+        model=settings.llm_model,
     )

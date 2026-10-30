@@ -19,7 +19,7 @@ Set-Location -LiteralPath $PSScriptRoot
 if (-not (Test-Path -LiteralPath ".env")) {
     Copy-Item -LiteralPath ".env.example" -Destination ".env"
     Write-Host ""
-    Write-Host "Created .env. Fill GITHUB_TOKEN, GITHUB_WEBHOOK_SECRET and GROQ_API_KEY." -ForegroundColor Yellow
+    Write-Host "Created .env. Fill GITHUB_TOKEN, GITHUB_WEBHOOK_SECRET and LLM_API_KEY." -ForegroundColor Yellow
     Write-Host "The file will open in Notepad. Save it, then press Enter here." -ForegroundColor Yellow
     Start-Process notepad.exe -ArgumentList ".env"
     Read-Host "Press Enter after saving .env"

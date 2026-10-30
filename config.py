@@ -23,14 +23,13 @@ PROJECT_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=PROJECT_DIR / ".env", override=False)
 
 DEFAULT_GITHUB_API_URL = "https://api.github.com"
-DEFAULT_GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+# Локальный OpenAI-совместимый endpoint Ollama для запуска приложения в Docker.
+DEFAULT_LLM_API_URL = "http://host.docker.internal:11434/v1"
+DEFAULT_LLM_MODEL = "qwen2.5:3b"
 DEFAULT_STATUS_CONTEXT = "Compliance Sentinel"
 
 _REPO_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
-
-# Максимальная длина context в Commit Status API (ограничение GitHub).
 _MAX_STATUS_CONTEXT_LENGTH = 100
 
 
@@ -120,24 +119,25 @@ def _read_allowed_repositories() -> frozenset[str]:
 class Settings:
     """Настройки приложения.
 
-    Обязательных секретов всего три: GitHub-токен, секрет вебхука и ключ Groq.
-    Остальные параметры имеют безопасные значения по умолчанию.
+    Обязательных секретов три: GitHub-токен, секрет вебхука и ключ LLM API.
+    Провайдер LLM задаётся через LLM_API_URL/LLM_MODEL и должен поддерживать
+    OpenAI-совместимый endpoint /chat/completions.
     """
 
     github_token: str
     github_webhook_secret: str
-    groq_api_key: str
+    llm_api_key: str
 
     github_api_url: str = DEFAULT_GITHUB_API_URL
-    groq_api_url: str = DEFAULT_GROQ_API_URL
-    groq_model: str = DEFAULT_GROQ_MODEL
+    llm_api_url: str = DEFAULT_LLM_API_URL
+    llm_model: str = DEFAULT_LLM_MODEL
 
     status_context: str = DEFAULT_STATUS_CONTEXT
     max_diff_chars: int = 80_000
     http_timeout_seconds: float = 30.0
-    groq_timeout_seconds: float = 90.0
-    groq_max_retries: int = 2
-    max_concurrent_audits: int = 4
+    llm_timeout_seconds: float = 300.0
+    llm_max_retries: int = 1
+    max_concurrent_audits: int = 2
 
     public_base_url: str | None = None
     allowed_repositories: frozenset[str] = frozenset()
@@ -150,7 +150,7 @@ class Settings:
         if len(webhook_secret) < 16:
             raise ConfigurationError(
                 "GITHUB_WEBHOOK_SECRET должен содержать не менее 16 символов. "
-                'Сгенерируйте его командой: python -c "import secrets; print(secrets.token_hex(32))".'
+                "Сгенерируйте его командой: python -c \"import secrets; print(secrets.token_hex(32))\"."
             )
 
         status_context = _read_str("STATUS_CONTEXT", DEFAULT_STATUS_CONTEXT)
@@ -179,10 +179,10 @@ class Settings:
         return cls(
             github_token=_read_str("GITHUB_TOKEN", required=True),
             github_webhook_secret=webhook_secret,
-            groq_api_key=_read_str("GROQ_API_KEY", required=True),
+            llm_api_key=_read_str("LLM_API_KEY", required=True),
             github_api_url=_read_url("GITHUB_API_URL", DEFAULT_GITHUB_API_URL),
-            groq_api_url=_read_url("GROQ_API_URL", DEFAULT_GROQ_API_URL),
-            groq_model=_read_str("GROQ_MODEL", DEFAULT_GROQ_MODEL),
+            llm_api_url=_read_url("LLM_API_URL", DEFAULT_LLM_API_URL),
+            llm_model=_read_str("LLM_MODEL", DEFAULT_LLM_MODEL),
             status_context=status_context,
             max_diff_chars=_read_int(
                 "MAX_DIFF_CHARS", 80_000, minimum=1_000, maximum=500_000
@@ -190,12 +190,12 @@ class Settings:
             http_timeout_seconds=_read_float(
                 "HTTP_TIMEOUT_SECONDS", 30.0, minimum=1.0, maximum=300.0
             ),
-            groq_timeout_seconds=_read_float(
-                "GROQ_TIMEOUT_SECONDS", 90.0, minimum=5.0, maximum=600.0
+            llm_timeout_seconds=_read_float(
+                "LLM_TIMEOUT_SECONDS", 300.0, minimum=5.0, maximum=900.0
             ),
-            groq_max_retries=_read_int("GROQ_MAX_RETRIES", 2, minimum=0, maximum=5),
+            llm_max_retries=_read_int("LLM_MAX_RETRIES", 1, minimum=0, maximum=5),
             max_concurrent_audits=_read_int(
-                "MAX_CONCURRENT_AUDITS", 4, minimum=1, maximum=50
+                "MAX_CONCURRENT_AUDITS", 2, minimum=1, maximum=50
             ),
             public_base_url=public_base_url,
             allowed_repositories=_read_allowed_repositories(),
