@@ -11,8 +11,8 @@
 > GitHub-бота. Для сдачи и демо см. [SUBMISSION.md](SUBMISSION.md).
 
 AI-бот для GitHub, который перехватывает Pull Request, анализирует `git diff`
-с помощью LLM (по умолчанию Groq, `llama-3.3-70b-versatile`) и **блокирует
-слияние**, если находит критический риск:
+с помощью LLM (в live-демо — локальная Qwen2.5 3B; поддерживаются Groq и
+DeepSeek) и **блокирует слияние**, если находит критический риск:
 
 - захардкоженные пароли, токены, ключи и строки подключения;
 - утечку/небезопасную обработку персональных данных (PII);
@@ -41,7 +41,7 @@ AI-бот для GitHub, который перехватывает Pull Request,
 | --- | --- |
 | Открытый PR, который бот заблокировал | [PR #3](https://github.com/Horda23/SecureMerge/pull/3) |
 | Live-демо | ссылка **Website** в блоке About этого репозитория (обновляется автоматически) |
-| Release для сдачи | [v1.0.1](https://github.com/Horda23/SecureMerge/releases/tag/v1.0.1) |
+| Release для сдачи | [v1.0.1](https://github.com/Horda23/SecureMerge/releases/tag/v1.0.2) |
 | Чек-лист жюри | [SUBMISSION.md](SUBMISSION.md) |
 
 > В live-демо используется локальная Qwen2.5 3B через Ollama в Docker —
