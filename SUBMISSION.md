@@ -33,7 +33,7 @@ Compliance Sentinel — GitHub-бот, который проверяет Pull Re
 
 - Репозиторий: <https://github.com/Horda23/SecureMerge>
 - Заблокированный PR: <https://github.com/Horda23/SecureMerge/pull/3>
-- Release: <https://github.com/Horda23/SecureMerge/releases/tag/v1.0.3>
+- Release: <https://github.com/Horda23/SecureMerge/releases/tag/v1.0.4>
 - Live-демо: ссылка **Website** в блоке About репозитория.
 - README: <https://github.com/Horda23/SecureMerge/blob/main/README.md>
 
@@ -82,7 +82,7 @@ GitHub PR --webhook--> FastAPI /webhook
 
 | Проверка | Результат |
 | --- | --- |
-| `pytest -q` | 44 passed |
+| `pytest -q` | 48 passed |
 | `ruff check .` | clean |
 | Live webhook ping | `202 OK` |
 | Реальный PR | комментарий + `failure` |
@@ -105,6 +105,7 @@ GitHub PR --webhook--> FastAPI /webhook
 ```bash
 cp .env.example .env
 # заполнить GITHUB_TOKEN, GITHUB_WEBHOOK_SECRET, LLM_API_KEY
+# Windows: .\start-all.ps1   Linux/macOS: ./start-all.sh
 docker compose up -d --build
 curl http://127.0.0.1:8000/health
 ```

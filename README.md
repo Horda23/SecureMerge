@@ -1,10 +1,9 @@
 # 🛡️ Compliance Sentinel
 
-[![tests](https://img.shields.io/badge/tests-44%20passed-brightgreen)](#тесты)
+[![tests](https://img.shields.io/badge/tests-48%20passed-brightgreen)](#тесты)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](#требования)
 [![fastapi](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
 [![llm](https://img.shields.io/badge/LLM-OpenAI--compatible-7c3aed)](#llm-провайдер)
-[![CI](https://github.com/Horda23/SecureMerge/actions/workflows/ci.yml/badge.svg)](https://github.com/Horda23/SecureMerge/actions/workflows/ci.yml)
 [![docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](#быстрый-старт)
 
 > **SecureMerge** — репозиторий проекта; **Compliance Sentinel** — имя
@@ -27,22 +26,48 @@ AI-бот для GitHub, который перехватывает Pull Request,
 > большой или модель вернула некорректный JSON, PR блокируется для ручной
 > проверки. Compliance-бот не должен пропускать риск из-за сбоя зависимости.
 
+## ⚡ Быстрый старт за 5 минут
+
+1. Установите и запустите **Docker Desktop**.
+2. Создайте `.env` и заполните три обязательные переменные:
+   ```bash
+   cp .env.example .env
+   # GITHUB_TOKEN, GITHUB_WEBHOOK_SECRET, LLM_API_KEY
+   ```
+3. Запустите всё одной командой:
+   - Windows: `.\start-all.ps1`
+   - Linux/macOS: `./start-all.sh`
+
+   Скрипт проверит Docker, поднимет локальную Ollama, скачает `qwen2.5:3b`,
+   соберёт приложение и покажет готовый webhook URL.
+
+4. Проверьте:
+   - <http://127.0.0.1:8000/health>
+   - <http://127.0.0.1:8000/docs>
+5. Добавьте webhook в GitHub:
+   - Payload URL из вывода скрипта (`<PUBLIC_BASE_URL>/webhook`);
+   - Content type: `application/json`;
+   - Secret: `GITHUB_WEBHOOK_SECRET` из `.env`;
+   - Events: **Pull requests**.
+6. В branch protection для `main` добавьте обязательную проверку
+   `Compliance Sentinel`.
+
+> Если `PUBLIC_BASE_URL` пуст, GitHub не сможет достучаться до localhost.
+> Для живого вебхука нужен публичный URL — туннель или Render. Скрипт
+> `start-all` выведет это предупреждение.
+
 ## Демо
 
 | Что | Где |
 | --- | --- |
 | Открытый PR, который бот заблокировал | [PR #3](https://github.com/Horda23/SecureMerge/pull/3) |
 | Live-демо | ссылка **Website** в блоке About этого репозитория (обновляется автоматически) |
-| Release для сдачи | [v1.0.3](https://github.com/Horda23/SecureMerge/releases/tag/v1.0.3) |
+| Release для сдачи | [v1.0.4](https://github.com/Horda23/SecureMerge/releases/tag/v1.0.4) |
 | Чек-лист жюри | [SUBMISSION.md](SUBMISSION.md) |
 
-> в live-демо используется локальная Qwen2.5 3B через Ollama в Docker —
+> В live-демо используется локальная Qwen2.5 3B через Ollama в Docker —
 > без внешних API и биллинга. Проект также поддерживает любой
 > OpenAI-совместимый endpoint.
->
-> Live-демо обслуживается постоянным HTTP-туннелем `bore.pub` с локального
-> ПК. Для production нужен HTTPS (Render или reverse-proxy); ссылка Website
-> обновляется автоматически при смене порта.
 
 ## Как это работает
 
@@ -82,7 +107,10 @@ protection и выключенном admin bypass.
   requests и commit statuses.
 - LLM: локальная Ollama или любой OpenAI-совместимый `/chat/completions`.
 
-## Быстрый старт (Docker)
+## Запуск вручную через Docker
+
+Если не хотите использовать `start-all`, поднимите Ollama и приложение
+раздельно:
 
 ```bash
 cp .env.example .env
@@ -118,10 +146,18 @@ LLM_MAX_RETRIES=1
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
+python run.py
+```
+
+`run.py` сначала проверяет конфигурацию и печатает понятную инструкцию,
+что именно заполнить, вместо сырого traceback. Для проверки без запуска:
+
+```bash
+python run.py --check
 ```
 
 Или одной командой на Windows: `.\start.ps1`, на Linux/macOS: `./start.sh`.
+Для запуска в Docker используйте `start-all.ps1` / `start-all.sh`.
 
 ## LLM-провайдер
 
@@ -222,8 +258,42 @@ fail-closed, ретраи, публикация комментария/стат�
 - Большой diff или обрезанный ответ LLM → fail-closed.
 - `BackgroundTasks` не переживают рестарт процесса; нет очереди и
   дедупликации доставок.
-- Нет CI-workflow и постоянного облачного хостинга в текущей поставке.
+- Нет постоянного облачного хостинга в текущей поставке; live-демо
+  обслуживается туннелем с локального ПК.
 - Бот — дополнительный контур, а не замена SAST/secret scanning/ревью.
+
+## Частые проблемы
+
+**`start-all` пишет, что Docker не запущен.**
+Запустите Docker Desktop и дождитесь статуса Running. Проверка:
+`docker info`.
+
+**`В .env не заполнено: GITHUB_TOKEN, ...`**
+Скопируйте `.env.example` в `.env` и заполните все три обязательные
+переменные. Для локальной Ollama `LLM_API_KEY` может быть `ollama`.
+
+**Webhook отвечает `401 Invalid webhook signature`.**
+`GITHUB_WEBHOOK_SECRET` в `.env` не совпадает с Secret в настройках
+webhook. Обновите Secret в GitHub и перезапустите приложение.
+
+**GitHub присылает `202`, но в PR нет комментария/статуса.**
+Проверьте `docker compose logs --tail 100 app`. Частые причины: неверный
+`GITHUB_TOKEN`, нет прав на commit statuses, LLM недоступен или туннель
+не доставляет запросы.
+
+**`docker compose up` не видит Ollama / LLM timeout.**
+Убедитесь, что контейнер `compliance-ollama` запущен и модель загружена:
+`docker exec compliance-ollama ollama list`. Для Docker используйте
+`LLM_API_URL=http://host.docker.internal:11434/v1`, для локального
+`run.py` — `http://127.0.0.1:11434/v1`.
+
+**Merge не блокируется.**
+Проверьте branch protection: включён **Require status checks**, добавлен
+контекст `Compliance Sentinel`, а admin bypass выключен.
+
+**Порт 8000 уже занят.**
+Остановите старый контейнер: `docker compose down`, затем повторите
+`start-all`.
 
 ## Структура проекта
 
@@ -233,11 +303,14 @@ ai_analyzer.py        запрос к OpenAI-совместимому LLM, JSON 
 github_api.py         GitHub REST: PR и diff
 github_actions.py     комментарии и commit statuses
 config.py             .env и валидация настроек
+run.py                дружелюбный запуск и проверка конфигурации
 tests/                pytest-набор
 Dockerfile            production-контейнер
-docker-compose.yml    app + Ollama-подсказки
+docker-compose.yml    app-контейнер
 render.yaml           blueprint для Render
-start.ps1 / start.sh  локальный запуск
+start-all.ps1/.sh     запуск Docker + Ollama одной командой
+start.ps1/.sh         ручной локальный запуск
+.github/workflows/    CI: ruff + pytest
 ```
 
 ## API

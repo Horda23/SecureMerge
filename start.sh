@@ -14,8 +14,4 @@ if [ ! -x .venv/bin/python ]; then
     .venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
 fi
 
-.venv/bin/python -c "from config import get_settings; get_settings()"
-
-echo "Compliance Sentinel: http://127.0.0.1:8000/health"
-echo "Swagger:             http://127.0.0.1:8000/docs"
-exec .venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+.venv/bin/python run.py

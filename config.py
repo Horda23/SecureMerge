@@ -37,6 +37,31 @@ class ConfigurationError(RuntimeError):
     """Некорректная или неполная конфигурация приложения."""
 
 
+_REQUIRED_ENV_HELP = {
+    "GITHUB_TOKEN": (
+        "Создайте GitHub PAT: https://github.com/settings/tokens\n"
+        "  Нужен доступ к Pull requests (read/write) и Commit statuses (read/write)."
+    ),
+    "GITHUB_WEBHOOK_SECRET": (
+        "Придумайте случайную строку и укажите её же в GitHub webhook Secret.\n"
+        "  Пример генерации: python -c \"import secrets; print(secrets.token_hex(32))\"."
+    ),
+    "LLM_API_KEY": (
+        "Укажите ключ LLM-провайдера. Для локальной Ollama подойдёт любое "
+        "непустое значение, например: LLM_API_KEY=ollama."
+    ),
+}
+
+
+def _missing_env_message(name: str) -> str:
+    help_text = _REQUIRED_ENV_HELP.get(name, "Заполните переменную в .env.")
+    return (
+        f"Не задана обязательная переменная {name}.\n"
+        f"  {help_text}\n"
+        "  Файл .env создаётся командой: cp .env.example .env"
+    )
+
+
 def _read_str(name: str, default: str | None = None, *, required: bool = False) -> str:
     """Прочитать строковую переменную, обрезав пробелы."""
     raw = os.getenv(name)
@@ -44,10 +69,7 @@ def _read_str(name: str, default: str | None = None, *, required: bool = False) 
     if value:
         return value
     if required:
-        raise ConfigurationError(
-            f"Обязательная переменная окружения {name} не задана. "
-            "Скопируйте .env.example в .env и заполните секреты."
-        )
+        raise ConfigurationError(_missing_env_message(name))
     return default or ""
 
 
@@ -149,8 +171,9 @@ class Settings:
         webhook_secret = _read_str("GITHUB_WEBHOOK_SECRET", required=True)
         if len(webhook_secret) < 16:
             raise ConfigurationError(
-                "GITHUB_WEBHOOK_SECRET должен содержать не менее 16 символов. "
-                "Сгенерируйте его командой: python -c \"import secrets; print(secrets.token_hex(32))\"."
+                "GITHUB_WEBHOOK_SECRET слишком короткий: нужно минимум 16 символов.\n"
+                "  Сгенерируйте: python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+                "  и укажите это же значение в GitHub webhook Secret."
             )
 
         status_context = _read_str("STATUS_CONTEXT", DEFAULT_STATUS_CONTEXT)

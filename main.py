@@ -350,18 +350,33 @@ def build_block_comment(
     model = html.escape(result.model or settings.llm_model)
     context = html.escape(settings.status_context)
     action_safe = html.escape(action)
+    repo_safe = html.escape(f"{repo_full_name}#{pull_number}")
+    sha_safe = html.escape(head_sha[:7])
+    verdict = "⚠️ BLOCK (fail-closed)" if result.degraded else "❌ BLOCK"
+    reason_block = reason or "Причина не была получена; требуется ручная проверка."
 
     return (
         "## 🛑 Compliance Sentinel: проверка не пройдена\n\n"
-        "**Причина:**\n"
-        f"> {reason}\n\n"
+        "| Проверка | Результат |\n"
+        "| --- | --- |\n"
+        f"| Вердикт | **{verdict}** |\n"
+        f"| Модель | `{model}` |\n"
+        f"| Коммит | `{sha_safe}` |\n"
+        f"| Событие | `{action_safe}` |\n\n"
+        "### Почему заблокировано\n\n"
+        f"> {reason_block}\n\n"
         f"{notes_block}"
-        "**Что делать:** исправьте проблему и добавьте новый коммит — "
-        "проверка перезапустится автоматически (событие `synchronize`).\n\n"
+        "### Что делать\n\n"
+        "1. Исправьте проблему, описанную выше.\n"
+        "2. Добавьте новый коммит в этот PR.\n"
+        "3. Дождитесь автоматической перепроверки — событие `synchronize` "
+        "запустит её без ручных действий.\n\n"
+        "Если это ложное срабатывание, обсудите его с командой и при "
+        "необходимости выполните ручную проверку.\n\n"
         "---\n"
         f"<sub>Проверка: <b>{context}</b> · "
-        f"PR: <code>{repo_full_name}#{pull_number}</code> · "
-        f"коммит: <code>{head_sha[:7]}</code> · "
+        f"PR: <code>{repo_safe}</code> · "
+        f"коммит: <code>{sha_safe}</code> · "
         f"модель: <code>{model}</code> · "
         f"событие: <code>{action_safe}</code></sub>"
     )

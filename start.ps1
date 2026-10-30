@@ -13,7 +13,7 @@ param(
     [switch]$SkipInstall
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 Set-Location -LiteralPath $PSScriptRoot
 
 if (-not (Test-Path -LiteralPath ".env")) {
@@ -49,16 +49,10 @@ if ($createdVenv -or -not $SkipInstall) {
     }
 }
 
-Write-Host "Validating .env..." -ForegroundColor Cyan
-& $venvPython -c "from config import get_settings; get_settings()"
+Write-Host "Starting Compliance Sentinel..." -ForegroundColor Cyan
+Write-Host ""
+& $venvPython "run.py"
 if ($LASTEXITCODE -ne 0) {
-    throw "Configuration is invalid. Fix .env and run .\start.ps1 again."
+    Write-Host "Startup failed. Read the message above and fix .env." -ForegroundColor Red
+    exit $LASTEXITCODE
 }
-
-Write-Host ""
-Write-Host "Compliance Sentinel: http://127.0.0.1:8000/health" -ForegroundColor Green
-Write-Host "Swagger:             http://127.0.0.1:8000/docs" -ForegroundColor Green
-Write-Host "Press Ctrl+C to stop." -ForegroundColor DarkGray
-Write-Host ""
-
-& $venvPython -m uvicorn main:app --host 0.0.0.0 --port 8000

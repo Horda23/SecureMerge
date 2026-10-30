@@ -72,6 +72,17 @@ def test_russian_quoted_secret_is_redacted(settings) -> None:
     assert "REDACTED" in comment
 
 
+def test_block_comment_has_clear_verdict_model_and_next_steps(settings) -> None:
+    comment = _comment(settings, "Найден захардкоженный пароль в app.py.")
+
+    assert "Вердикт" in comment
+    assert "BLOCK" in comment
+    assert "Модель" in comment
+    assert "llama-test" in comment
+    assert "Что делать" in comment
+    assert "synchronize" in comment
+
+
 def test_status_description_does_not_expose_llm_reason(settings) -> None:
     token = "ghp_" + "Z9y8X7w6" * 4
     result = AnalysisResult(

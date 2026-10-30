@@ -6,6 +6,10 @@ services:
       - .env
     ports:
       - "8000:8000"
+    # Docker Desktop already resolves this on Windows/macOS; the mapping keeps
+    # the same .env working on Linux Docker Engine.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   # Public HTTPS URL without a local tunnel client:
